@@ -184,6 +184,7 @@ final class FluxBufferTimeout<T, C extends Collection<? super T>> extends Intern
 							"The bufferSupplier returned a null buffer");
 					values = v;
 				}
+				// 将元素累加到buf里面
 				v.add(value);
 			}
 		}
@@ -193,20 +194,26 @@ final class FluxBufferTimeout<T, C extends Collection<? super T>> extends Intern
 			boolean flush = false;
 			synchronized (this) {
 				v = values;
+				// 如果BUF不是空的
 				if (v != null && !v.isEmpty()) {
+					// 指定一个新的buf
 					values = bufferSupplier.get();
+					// 确认可以flush的tag
 					flush = true;
 				}
 			}
-
+			// 如果可以推送元素
 			if (flush) {
 				long r = requested;
+				// 请求数量不为0
 				if (r != 0L) {
+					// 请求数量不是最大值
 					if (r != Long.MAX_VALUE) {
 						long next;
 						for (;;) {
 							next = r - 1;
 							if (REQUESTED.compareAndSet(this, r, next)) {
+								// 记录请求数量，如果下游需要的数量达到则进入下面的break
 								actual.onNext(v);
 								return;
 							}
@@ -218,6 +225,7 @@ final class FluxBufferTimeout<T, C extends Collection<? super T>> extends Intern
 						}
 					}
 					else {
+						// 如果是请求的最大值，则直接进行推送元素
 						actual.onNext(v);
 						return;
 					}
@@ -248,15 +256,17 @@ final class FluxBufferTimeout<T, C extends Collection<? super T>> extends Intern
 		@Override
 		public void onNext(final T value) {
 			int index;
+			// 乐观锁处理，增加index
 			for(;;){
 				index = this.index + 1;
 				if(INDEX.compareAndSet(this, index - 1, index)){
 					break;
 				}
 			}
-
+			// 如果index==1，表明是第一次进入元素
 			if (index == 1) {
 				try {
+					// 提交一个定时任务，用于检测在指定的时间是否应该推送元素
 					timespanRegistration = timer.schedule(flushTask, timespan, unit);
 				}
 				catch (RejectedExecutionException ree) {
@@ -266,15 +276,17 @@ final class FluxBufferTimeout<T, C extends Collection<? super T>> extends Intern
 					return;
 				}
 			}
-
+			// 累加元素至buf
 			nextCallback(value);
-
+			// 如果元素达到指定的大小
 			if (this.index % batchSize == 0) {
 				this.index = 0;
 				if (timespanRegistration != null) {
+					// 取消 检测超时的任务
 					timespanRegistration.dispose();
 					timespanRegistration = null;
 				}
+				// 推送元素至下游订阅者
 				flushCallback(value);
 			}
 		}

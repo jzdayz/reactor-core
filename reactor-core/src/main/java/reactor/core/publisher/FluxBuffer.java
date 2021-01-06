@@ -152,11 +152,12 @@ final class FluxBuffer<T, C extends Collection<? super T>> extends InternalFluxO
 				}
 				buffer = b;
 			}
-
+			// 所有来到的元素累计到buf中
 			b.add(t);
-
+			// 达到指定的大小之后推进去消费
 			if (b.size() == size) {
 				buffer = null;
+				// 一组元素推进去消费
 				actual.onNext(b);
 			}
 		}

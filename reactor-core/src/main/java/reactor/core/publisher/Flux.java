@@ -2438,6 +2438,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * @return the {@link Flux} transformed to an instance of P
 	 * @see #transformDeferred(Function) transformDeferred(Function) for a lazy transformation of Flux
+	 *
+	 *  flux转换类型
 	 */
 	public final <P> P as(Function<? super Flux<T>, P> transformer) {
 		return transformer.apply(this);
